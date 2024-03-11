@@ -1,4 +1,6 @@
 import constants.Constants;
+import dto.Request;
+import service.ResponseHandler;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -17,13 +19,9 @@ public class Main {
       Socket clientSocket = serverSocket.accept(); // Wait for connection from client.
 
       try (BufferedReader inputReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-        String startLine = inputReader.readLine();
-        String[] parts = startLine.split("\\s+");
-
-        if (parts.length >= 2) {
-          String response = getResponse(parts[1]);
-          clientSocket.getOutputStream().write(response.getBytes(StandardCharsets.UTF_8));
-        }
+        Request request = new Request(inputReader);
+        String response = ResponseHandler.getResponse(request).getResponseString();
+        clientSocket.getOutputStream().write(response.getBytes(StandardCharsets.UTF_8));
       } catch (Exception e) {
         System.out.print("Exception in reading input: " + e.getMessage());
       }
@@ -31,31 +29,5 @@ public class Main {
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     }
-  }
-
-  private static String getResponse(String path) {
-    if (path.equals("/")) return getOKResponse();
-    else if (path.startsWith(Constants.ECHO)) return getContentResponse(path);
-    else return getNotFoundResponse();
-  }
-
-  private static String getOKResponse() {
-    return "HTTP/1.1 200 OK" + Constants.CRLF + Constants.CRLF;
-  }
-
-  private static String getNotFoundResponse() {
-    return "HTTP/1.1 404 Not Found" + Constants.CRLF + Constants.CRLF;
-  }
-
-  private static String getContentResponse(String path) {
-    String content = path.substring(Constants.ECHO.length());
-    return "HTTP/1.1 200 OK"
-        + Constants.CRLF
-        + "Content-Type: text/plain"
-        + Constants.CRLF
-        + String.format("Content-Length: %d", content.getBytes(StandardCharsets.UTF_8).length)
-        + Constants.CRLF
-        + Constants.CRLF
-        + content;
   }
 }
