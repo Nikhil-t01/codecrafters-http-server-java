@@ -3,8 +3,8 @@ package dto;
 import constants.Constants;
 import util.Utils;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,13 +13,15 @@ public class Request {
   private final String path;
   private final String httpVersion;
   private final Map<String, String> headers;
+  private final byte[] body;
 
-  public Request(BufferedReader inputReader) throws Exception {
-    String[] parts = readStartLine(inputReader);
+  public Request(InputStream inputStream) throws Exception {
+    String[] parts = readStartLine(inputStream);
     this.method = parts[0];
     this.path = parts[1];
     this.httpVersion = parts[2];
-    this.headers = readHeaders(inputReader);
+    this.headers = readHeaders(inputStream);
+    this.body = readBody(inputStream, this.headers.getOrDefault(Constants.CONTENT_LENGTH_HEADER, "0"));
   }
 
   public String getMethod() {
@@ -38,11 +40,25 @@ public class Request {
     return this.headers;
   }
 
-  private static Map<String, String> readHeaders(BufferedReader inputReader) throws IOException {
+  public byte[] getBody() {
+    return this.body;
+  }
+
+  private static byte[] readBody(InputStream inputStream, String lengthString) throws IOException {
+    int length;
+    try {
+      length = Integer.parseInt(lengthString);
+    } catch (Exception e) {
+      length = 0;
+    }
+    return inputStream.readNBytes(length);
+  }
+
+  private static Map<String, String> readHeaders(InputStream inputStream) throws IOException {
     String line;
     Map<String, String> headerMap = new HashMap<>();
 
-    while (Utils.isNotEmpty(line = inputReader.readLine())) {
+    while (Utils.isNotEmpty(line = Utils.readLine(inputStream))) {
       String[] headerParts = line.split(Constants.COLON);
       if (headerParts.length > 1)
         headerMap.put(headerParts[0].strip().toLowerCase(), headerParts[1].strip());
@@ -51,7 +67,7 @@ public class Request {
     return headerMap;
   }
 
-  private static String[] readStartLine(BufferedReader inputReader) throws IOException {
-    return inputReader.readLine().split("\\s+");
+  private static String[] readStartLine(InputStream inputStream) throws IOException {
+    return Utils.readLine(inputStream).split("\\s+");
   }
 }
